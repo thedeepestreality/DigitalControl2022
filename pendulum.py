@@ -8,8 +8,11 @@ dt = 1/240 # pybullet simulation step
 q0 = 0.5
 maxTime = 10
 g = 10
+L = 0.8
+m = 1
 tt = np.arange(0, maxTime+2*dt, dt)
 pos = [q0]
+vel = [0]
 t = 0
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
@@ -36,22 +39,36 @@ p.setJointMotorControl2(bodyIndex = bodyId,
                         controlMode = p.VELOCITY_CONTROL, 
                         force = 0)
 while t < maxTime:
-    p.stepSimulation()
+    a = 1
+    if t > 0:
+        a = 0
     q = p.getJointState(bodyId, 1)[0]
+    w = p.getJointState(bodyId, 1)[1]
+    p.setJointMotorControl2(bodyIndex = bodyId, 
+                            jointIndex = 1,
+                            controlMode = p.TORQUE_CONTROL, 
+                            force = m*g*L*math.sin(q) + m*L*L*a/dt)
     pos.append(q)
+    vel.append(w)
+    p.stepSimulation()
     # time.sleep(dt)
     t += dt
 p.disconnect()
 
 def rp(X, t):
-    L = 0.8
     dx = [X[1], -g/L*math.sin(X[0])]
     return dx
 
 Y = odeint(rp, [q0,0], tt)
 
 import matplotlib.pyplot as plt
+plt.figure("pos")
 plt.plot(tt, pos)
 plt.grid(True)
-plt.plot(tt, Y[:,0])
+# plt.plot(tt, Y[:,0])
+
+plt.figure("vel")
+plt.plot(tt, vel)
+plt.grid(True)
+
 plt.show()

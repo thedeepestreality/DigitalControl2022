@@ -44,7 +44,7 @@
     <joint name="world_to_base" type="fixed">
         <parent link="world"/>
         <child link="base"/>
-        <origin xyz="0 0 1" rpy="0 3.1415 0"/>
+        <origin xyz="0 0 1" rpy="0 3.14159265358979323846 0"/>
     </joint>
 
     <joint name="joint_1" type="revolute">
