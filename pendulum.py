@@ -3,11 +3,14 @@ import time
 import numpy as np
 from scipy.integrate import odeint
 import math
+import copy
 
 dt = 1/240 # pybullet simulation step
-q0 = 0.5
+q0 = 0.1
 maxTime = 10
 g = 10
+L = 0.8
+m = 1
 tt = np.arange(0, maxTime+2*dt, dt)
 pos = [q0]
 t = 0
@@ -28,6 +31,8 @@ p.setJointMotorControl2(bodyIndex=bodyId,
                         controlMode=p.POSITION_CONTROL)
 for _ in range(1000):
     p.stepSimulation()
+q0 = p.getJointState(bodyId, 1)[0]
+print(f'q0: {q0}')
 
 # turn off the motor for the free motion
 p.setJointMotorControl2(bodyIndex = bodyId, 
@@ -38,20 +43,42 @@ p.setJointMotorControl2(bodyIndex = bodyId,
 while t < maxTime:
     p.stepSimulation()
     q = p.getJointState(bodyId, 1)[0]
+    w = p.getJointState(bodyId, 1)[1]
     pos.append(q)
+    Q = np.vstack((q,w))
+
+    kq = 12.48  
+    kw = 7.68
+    p.setJointMotorControl2(bodyIndex = bodyId, 
+                        jointIndex = 1, 
+                        controlMode = p.TORQUE_CONTROL, 
+                        force = -kq*q -kw*w)
+
     # time.sleep(dt)
     t += dt
 p.disconnect()
 
 def rp(X, t):
-    L = 0.8
-    dx = [X[1], -g/L*math.sin(X[0])]
+    # dx = [X[1], -g/L*math.sin(X[0])]
+    dx = [X[1], -g/L*X[0]]
     return dx
 
-Y = odeint(rp, [q0,0], tt)
+# symplectic euler method
+def symp_euler(fun, x0, TT):
+    x1 = copy.copy(x0)
+    xx = np.array(x1)
+    for i in range(len(TT)-1):
+        dt = (TT[i+1]-TT[i])
+        x1[1] += rp(x1, 0)[1]*dt
+        x1[0] += x1[1]*dt
+        xx = np.vstack((xx,x1))
+    return xx
+
+# Y = odeint(rp, [q0,0], tt)
+# Y = symp_euler(rp, [q0, 0], tt)
 
 import matplotlib.pyplot as plt
 plt.plot(tt, pos)
 plt.grid(True)
-plt.plot(tt, Y[:,0])
+# plt.plot(tt, Y[:,0])
 plt.show()
