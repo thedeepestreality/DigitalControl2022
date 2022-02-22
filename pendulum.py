@@ -11,8 +11,9 @@ maxTime = 10
 g = 10
 L = 0.8
 m = 1
-tt = np.arange(0, maxTime+2*dt, dt)
-pos = [q0]
+sz = int(maxTime/dt)
+tt = [None]*sz
+pos = [None]*sz
 t = 0
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
@@ -40,11 +41,10 @@ p.setJointMotorControl2(bodyIndex = bodyId,
                         targetVelocity = 0, 
                         controlMode = p.VELOCITY_CONTROL, 
                         force = 0)
-while t < maxTime:
-    p.stepSimulation()
+for i in range(0,sz):
     q = p.getJointState(bodyId, 1)[0]
     w = p.getJointState(bodyId, 1)[1]
-    pos.append(q)
+    pos[i] = q
     Q = np.vstack((q,w))
 
     kq = 12.48  
@@ -53,9 +53,10 @@ while t < maxTime:
                         jointIndex = 1, 
                         controlMode = p.TORQUE_CONTROL, 
                         force = -kq*q -kw*w)
-
+    p.stepSimulation()
     # time.sleep(dt)
     t += dt
+    tt[i] = t
 p.disconnect()
 
 def rp(X, t):
