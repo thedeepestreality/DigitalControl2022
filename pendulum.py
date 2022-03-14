@@ -14,6 +14,7 @@ m = 1
 sz = int(maxTime/dt)
 tt = [None]*sz
 pos = [None]*sz
+vel = [None]*sz
 t = 0
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
@@ -34,25 +35,31 @@ for _ in range(1000):
     p.stepSimulation()
 q0 = p.getJointState(bodyId, 1)[0]
 print(f'q0: {q0}')
-
+qd = 0.2
 # turn off the motor for the free motion
-p.setJointMotorControl2(bodyIndex = bodyId, 
-                        jointIndex = 1, 
-                        targetVelocity = 0, 
-                        controlMode = p.VELOCITY_CONTROL, 
-                        force = 0)
+# p.setJointMotorControl2(bodyIndex = bodyId, 
+#                         jointIndex = 1, 
+#                         targetVelocity = 0, 
+#                         controlMode = p.VELOCITY_CONTROL, 
+#                         force = 0)
 for i in range(0,sz):
     q = p.getJointState(bodyId, 1)[0]
     w = p.getJointState(bodyId, 1)[1]
     pos[i] = q
-    Q = np.vstack((q,w))
+    vel[i] = w
+    qq = q0 + t*(qd-q0)/maxTime
+    p.setJointMotorControl2(bodyIndex=bodyId, 
+                        jointIndex=1, 
+                        targetPosition=qq,
+                        controlMode=p.POSITION_CONTROL)
+    # Q = np.vstack((q,w))
 
-    kq = 12.48  
-    kw = 7.68
-    p.setJointMotorControl2(bodyIndex = bodyId, 
-                        jointIndex = 1, 
-                        controlMode = p.TORQUE_CONTROL, 
-                        force = -kq*q -kw*w)
+    # kq = 12.48  
+    # kw = 7.68
+    # p.setJointMotorControl2(bodyIndex = bodyId, 
+    #                     jointIndex = 1, 
+    #                     controlMode = p.TORQUE_CONTROL, 
+    #                     force = -kq*q -kw*w)
     p.stepSimulation()
     # time.sleep(dt)
     t += dt
@@ -79,7 +86,13 @@ def symp_euler(fun, x0, TT):
 # Y = symp_euler(rp, [q0, 0], tt)
 
 import matplotlib.pyplot as plt
+plt.figure("pos")
 plt.plot(tt, pos)
 plt.grid(True)
 # plt.plot(tt, Y[:,0])
+
+plt.figure("vel")
+plt.plot(tt, vel)
+plt.grid(True)
+
 plt.show()
