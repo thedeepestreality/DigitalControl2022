@@ -15,6 +15,7 @@ sz = int(maxTime/dt)
 tt = [None]*sz
 pos = [None]*sz
 t = 0
+e_int = 0
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
 physicsClient = p.connect(p.DIRECT)
@@ -34,6 +35,7 @@ for _ in range(1000):
     p.stepSimulation()
 q0 = p.getJointState(bodyId, 1)[0]
 print(f'q0: {q0}')
+qd = 0.78
 
 # turn off the motor for the free motion
 p.setJointMotorControl2(bodyIndex = bodyId, 
@@ -45,14 +47,15 @@ for i in range(0,sz):
     q = p.getJointState(bodyId, 1)[0]
     w = p.getJointState(bodyId, 1)[1]
     pos[i] = q
-    Q = np.vstack((q,w))
-
-    kq = 12.48  
-    kw = 7.68
+    e = q - qd
+    e_int += e*dt
+    kp = 20
+    ki = 30
+    kd = 4
     p.setJointMotorControl2(bodyIndex = bodyId, 
                         jointIndex = 1, 
                         controlMode = p.TORQUE_CONTROL, 
-                        force = -kq*q -kw*w)
+                        force = -kp*e -ki*e_int -kd*w)
     p.stepSimulation()
     # time.sleep(dt)
     t += dt
