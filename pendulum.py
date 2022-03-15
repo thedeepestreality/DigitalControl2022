@@ -5,9 +5,32 @@ from scipy.integrate import odeint
 import math
 import copy
 
+def lin_interp(q0, qd, t, T):
+    s = t/T
+    return q0 + s*(qd-q0)
+
+def cubic_interp(q0, qd, t, T):
+    a2 = 3/T**2
+    a3 = -2/T**3
+    s = a2*t**2 + a3*t**3
+    return q0 + s*(qd-q0)
+
+def trap_interp(q0, qd, t, T):
+    a = 2*4/T**2
+    v = (a*T - math.sqrt(a)*math.sqrt(a*T**2-4))/2
+    ta = v/a
+    if t >= 0 and t <= ta:
+        s = (a*t**2)/2
+    if t > ta and t <= (T-ta):
+        s = v*t - v**2/(2*a)
+    if t > (T-ta):
+        s = (2*a*v*T - 2*v**2 - a**2*(t-T)**2)/(2*a)
+    return q0 + s*(qd-q0)
+
 dt = 1/240 # pybullet simulation step
 q0 = 0.1
 maxTime = 10
+trajTime = 5
 g = 10
 L = 0.8
 m = 1
@@ -15,6 +38,7 @@ sz = int(maxTime/dt)
 tt = [None]*sz
 pos = [None]*sz
 vel = [None]*sz
+acc = [0]*sz
 t = 0
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
@@ -47,7 +71,15 @@ for i in range(0,sz):
     w = p.getJointState(bodyId, 1)[1]
     pos[i] = q
     vel[i] = w
-    qq = q0 + t*(qd-q0)/maxTime
+    if i>0:
+        acc[i] = (vel[i] - vel[i-1])/dt
+    
+    qq = qd
+    if t <= trajTime:
+        # qq = lin_interp(q0, qd, t, trajTime)
+        # qq = cubic_interp(q0, qd, t, trajTime)
+        qq = trap_interp(q0, qd, t, trajTime)
+        # qq = q0 + t*(qd-q0)/trajTime
     p.setJointMotorControl2(bodyIndex=bodyId, 
                         jointIndex=1, 
                         targetPosition=qq,
@@ -93,6 +125,10 @@ plt.grid(True)
 
 plt.figure("vel")
 plt.plot(tt, vel)
+plt.grid(True)
+
+plt.figure("acc")
+plt.plot(tt, acc)
 plt.grid(True)
 
 plt.show()
