@@ -38,16 +38,21 @@ p.setJointMotorControl2(bodyIndex = bodyId,
                         targetVelocity = 0, 
                         controlMode = p.VELOCITY_CONTROL, 
                         force = 0)
+qd = 0.4
 while t < maxTime:
-    a = 1
-    if t > 0:
-        a = 0
+    # u = 1/dt
+    # if t > 0:
+    #     u = 0
     q = p.getJointState(bodyId, 1)[0]
     w = p.getJointState(bodyId, 1)[1]
+    u = -2*(q-qd) - 2*w
+    tau_nonlin = m*g*L*math.sin(q)
+    tau_lin = m*L*L*u
+    tau = tau_nonlin + tau_lin
     p.setJointMotorControl2(bodyIndex = bodyId, 
                             jointIndex = 1,
                             controlMode = p.TORQUE_CONTROL, 
-                            force = m*g*L*math.sin(q) + m*L*L*a/dt)
+                            force = tau)
     pos.append(q)
     vel.append(w)
     p.stepSimulation()
