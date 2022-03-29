@@ -1,9 +1,6 @@
 import pybullet as p
 import time
-import numpy as np
-from scipy.integrate import odeint
 import math
-import copy
 
 def lin_interp(q0, qd, t, T):
     s = t/T
@@ -38,17 +35,17 @@ sz = int(maxTime/dt)
 tt = [None]*sz
 pos = [None]*sz
 vel = [None]*sz
-acc = [0]*sz
+acc = [None]*sz
+acc[0] = [0]*6
+
 t = 0
+qd = 0.2
+joints_idx = [1,2,3,4,5,6]
 
 # physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
 physicsClient = p.connect(p.DIRECT)
 p.setGravity(0,0,-g)
 bodyId = p.loadURDF("./pendulum.urdf")
-
-# get rid of all the default damping forces
-p.changeDynamics(bodyId, 1, linearDamping=0, angularDamping=0)
-p.changeDynamics(bodyId, 2, linearDamping=0, angularDamping=0)
 
 # go to the starting position
 p.setJointMotorControl2(bodyIndex=bodyId, 
@@ -59,76 +56,49 @@ for _ in range(1000):
     p.stepSimulation()
 q0 = p.getJointState(bodyId, 1)[0]
 print(f'q0: {q0}')
-qd = 0.2
-# turn off the motor for the free motion
-# p.setJointMotorControl2(bodyIndex = bodyId, 
-#                         jointIndex = 1, 
-#                         targetVelocity = 0, 
-#                         controlMode = p.VELOCITY_CONTROL, 
-#                         force = 0)
+
 for i in range(0,sz):
     q = p.getJointState(bodyId, 1)[0]
     w = p.getJointState(bodyId, 1)[1]
-    pos[i] = q
-    vel[i] = w
+    pos[i] = [state[0] for state in p.getJointStates(bodyId, joints_idx)]
+    vel[i] = [state[1] for state in p.getJointStates(bodyId, joints_idx)]
     if i>0:
-        acc[i] = (vel[i] - vel[i-1])/dt
+        acc[i] = [(vel[i][col] - vel[i-1][col])/dt for col in range(6)]
     
     qq = qd
     if t <= trajTime:
         # qq = lin_interp(q0, qd, t, trajTime)
         # qq = cubic_interp(q0, qd, t, trajTime)
         qq = trap_interp(q0, qd, t, trajTime)
-        # qq = q0 + t*(qd-q0)/trajTime
+        # print(f"qq: {qq}")
+
     p.setJointMotorControl2(bodyIndex=bodyId, 
                         jointIndex=1, 
                         targetPosition=qq,
                         controlMode=p.POSITION_CONTROL)
-    # Q = np.vstack((q,w))
 
-    # kq = 12.48  
-    # kw = 7.68
-    # p.setJointMotorControl2(bodyIndex = bodyId, 
-    #                     jointIndex = 1, 
-    #                     controlMode = p.TORQUE_CONTROL, 
-    #                     force = -kq*q -kw*w)
     p.stepSimulation()
     # time.sleep(dt)
     t += dt
     tt[i] = t
 p.disconnect()
 
-def rp(X, t):
-    # dx = [X[1], -g/L*math.sin(X[0])]
-    dx = [X[1], -g/L*X[0]]
-    return dx
-
-# symplectic euler method
-def symp_euler(fun, x0, TT):
-    x1 = copy.copy(x0)
-    xx = np.array(x1)
-    for i in range(len(TT)-1):
-        dt = (TT[i+1]-TT[i])
-        x1[1] += rp(x1, 0)[1]*dt
-        x1[0] += x1[1]*dt
-        xx = np.vstack((xx,x1))
-    return xx
-
-# Y = odeint(rp, [q0,0], tt)
-# Y = symp_euler(rp, [q0, 0], tt)
-
 import matplotlib.pyplot as plt
-plt.figure("pos")
-plt.plot(tt, pos)
-plt.grid(True)
-# plt.plot(tt, Y[:,0])
 
-plt.figure("vel")
-plt.plot(tt, vel)
-plt.grid(True)
+def plot(t, vals, title):
+    fig, ax = plt.subplots(3, 2,
+                        sharex='col', 
+                        sharey='row',
+                        num=title)
+    for row in range(3):
+        for col in range(2):
+            num = row + 3*col
+            ax[row, col].plot(tt, [r[num] for r in vals])
+            ax[row, col].grid(True)
+            ax[row, col].set(title="Joint"+str(num+1))
 
-plt.figure("acc")
-plt.plot(tt, acc)
-plt.grid(True)
+plot(tt, pos, 'Joints')
+plot(tt, vel, 'Velocity')
+plot(tt, acc, 'Acceleration')
 
 plt.show()
