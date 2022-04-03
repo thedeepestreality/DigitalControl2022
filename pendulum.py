@@ -1,84 +1,54 @@
-import pybullet as p
 import time
-import math
+import splines
+import pybullet as p
+from parameters import *
 
-def lin_interp(q0, qd, t, T):
-    s = t/T
-    return q0 + s*(qd-q0)
+GUI = False
 
-def cubic_interp(q0, qd, t, T):
-    a2 = 3/T**2
-    a3 = -2/T**3
-    s = a2*t**2 + a3*t**3
-    return q0 + s*(qd-q0)
-
-def trap_interp(q0, qd, t, T):
-    a = 2*4/T**2
-    v = (a*T - math.sqrt(a)*math.sqrt(a*T**2-4))/2
-    ta = v/a
-    if t >= 0 and t <= ta:
-        s = (a*t**2)/2
-    if t > ta and t <= (T-ta):
-        s = v*t - v**2/(2*a)
-    if t > (T-ta):
-        s = (2*a*v*T - 2*v**2 - a**2*(t-T)**2)/(2*a)
-    return q0 + s*(qd-q0)
-
-dt = 1/240 # pybullet simulation step
-q0 = 0.1
-maxTime = 10
-trajTime = 5
-g = 10
-L = 0.8
-m = 1
-sz = int(maxTime/dt)
-tt = [None]*sz
-pos = [None]*sz
-vel = [None]*sz
-acc = [None]*sz
-acc[0] = [0]*6
-
-t = 0
-qd = 0.2
-joints_idx = [1,2,3,4,5,6]
-
-# physicsClient = p.connect(p.GUI) # or p.DIRECT for non-graphical version
-physicsClient = p.connect(p.DIRECT)
+physicsClient = p.connect(p.GUI if GUI else p.DIRECT)
 p.setGravity(0,0,-g)
-bodyId = p.loadURDF("./pendulum.urdf")
+body_id = p.loadURDF("./pendulum.urdf")
 
 # go to the starting position
-p.setJointMotorControl2(bodyIndex=bodyId, 
-                        jointIndex=1, 
-                        targetPosition=q0,
+p.setJointMotorControlArray(bodyIndex=body_id, 
+                        jointIndices=joints_idx, 
+                        targetPositions=q0,
                         controlMode=p.POSITION_CONTROL)
 for _ in range(1000):
     p.stepSimulation()
-q0 = p.getJointState(bodyId, 1)[0]
+
+q0 = [state[0] for state in p.getJointStates(body_id, joints_idx)]
 print(f'q0: {q0}')
+(pos0, orient0) = splines.get_cart_pose()
+pos1 = [pos0[0], -pos0[1], pos0[2]]
+print(f'pos0: {(pos0, orient0)}')
+print(f'pos1: {(pos1, orient0)}')
+qd = np.array(splines.get_inverse_kinematics(pos1, orient0))
+print(f'qd: {qd}')
 
 for i in range(0,sz):
-    q = p.getJointState(bodyId, 1)[0]
-    w = p.getJointState(bodyId, 1)[1]
-    pos[i] = [state[0] for state in p.getJointStates(bodyId, joints_idx)]
-    vel[i] = [state[1] for state in p.getJointStates(bodyId, joints_idx)]
+    full_state = p.getJointStates(body_id, joints_idx)
+    pos[i] = [state[0] for state in full_state]
+    vel[i] = [state[1] for state in p.getJointStates(body_id, joints_idx)]
     if i>0:
         acc[i] = [(vel[i][col] - vel[i-1][col])/dt for col in range(6)]
+    xyz[i] = list(splines.get_cart_pose()[0])
     
     qq = qd
     if t <= trajTime:
         # qq = lin_interp(q0, qd, t, trajTime)
         # qq = cubic_interp(q0, qd, t, trajTime)
-        qq = trap_interp(q0, qd, t, trajTime)
+        qq = splines.trap_interp(q0, qd, t, trajTime)
         # print(f"qq: {qq}")
 
-    p.setJointMotorControl2(bodyIndex=bodyId, 
-                        jointIndex=1, 
-                        targetPosition=qq,
+    p.setJointMotorControlArray(bodyIndex=body_id, 
+                        jointIndices=joints_idx, 
+                        targetPositions=qq,
                         controlMode=p.POSITION_CONTROL)
 
     p.stepSimulation()
-    # time.sleep(dt)
+    if GUI:
+        time.sleep(dt)
     t += dt
     tt[i] = t
 p.disconnect()
@@ -97,8 +67,16 @@ def plot(t, vals, title):
             ax[row, col].grid(True)
             ax[row, col].set(title="Joint"+str(num+1))
 
+# joints plots
 plot(tt, pos, 'Joints')
 plot(tt, vel, 'Velocity')
 plot(tt, acc, 'Acceleration')
+
+# cartesian plot (XY-plane)
+plt.figure('xy')
+plt.plot([x[0] for x in xyz], [x[1] for x in xyz])
+plt.xlim(0, 1)
+plt.ylim(-0.5,0.5)
+plt.grid(True)
 
 plt.show()
