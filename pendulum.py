@@ -17,14 +17,24 @@ p.setJointMotorControlArray(bodyIndex=body_id,
 for _ in range(1000):
     p.stepSimulation()
 
+# j1 = -0.2:
+# ((0.784355017578571, 0.15909353788366457, 0.9006243344056912), (-0.09983341664637793, 0.9950038521688175, -2.9979989403517104e-07, 0.0007893603961037777))
+
+#j1 = 0.2:
+# ((0.784355017578571, -0.15909353788366457, 0.9006243344056912), (0.09983341664637793, 0.9950038521688175, 2.9979989403517104e-07, 0.0007893603961037777))
+
 q0 = [state[0] for state in p.getJointStates(body_id, joints_idx)]
 print(f'q0: {q0}')
 (pos0, orient0) = splines.get_cart_pose()
-pos1 = [pos0[0], -pos0[1], pos0[2]]
+X0 = splines.get_homogeneous()
+pos1 = [0.784355017578571, -0.15909353788366457, 0.9006243344056912]
+orient1 = [0.09983341664637793, 0.9950038521688175, 2.9979989403517104e-07, 0.0007893603961037777]
+Xd = splines.pybullet_to_homogeneous(pos1, orient0)
 print(f'pos0: {(pos0, orient0)}')
 print(f'pos1: {(pos1, orient0)}')
 qd = np.array(splines.get_inverse_kinematics(pos1, orient0))
 print(f'qd: {qd}')
+
 
 for i in range(0,sz):
     full_state = p.getJointStates(body_id, joints_idx)
@@ -38,7 +48,9 @@ for i in range(0,sz):
     if t <= trajTime:
         # qq = lin_interp(q0, qd, t, trajTime)
         # qq = cubic_interp(q0, qd, t, trajTime)
-        qq = splines.trap_interp(q0, qd, t, trajTime)
+        # qq = splines.trap_interp(q0, qd, t, trajTime)
+        # qq = splines.p2p_lin_screw(X0, Xd, t, trajTime)
+        qq = splines.p2p_lin_decoupled(X0, Xd, t, trajTime)
         # print(f"qq: {qq}")
 
     p.setJointMotorControlArray(bodyIndex=body_id, 
@@ -75,8 +87,8 @@ plot(tt, acc, 'Acceleration')
 # cartesian plot (XY-plane)
 plt.figure('xy')
 plt.plot([x[0] for x in xyz], [x[1] for x in xyz])
-plt.xlim(0, 1)
-plt.ylim(-0.5,0.5)
+# plt.xlim(0, 1)
+# plt.ylim(-0.5,0.5)
 plt.grid(True)
 
 plt.show()
