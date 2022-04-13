@@ -1,7 +1,7 @@
 import numpy as np
 
 dt = 1/240 # pybullet simulation step
-q0 = np.array([-0.2,0,1.57,0,1.57,0])
+q0 = np.array([0,0,1.57,0,1.57,0])
 joints_idx = [1,2,3,4,5,6]
 maxTime = 10
 trajTime = 5
