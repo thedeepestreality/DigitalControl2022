@@ -25,6 +25,36 @@ def trap_interp(q0, qd, t, T):
         s = (2*a*v*T - 2*v**2 - a**2*(t-T)**2)/(2*a)
     return q0 + s*(qd-q0)
 
+def s_curve_interp(rob, q0, qd, t, T):
+    t_2 = T/6 # choose
+    t_3 = T/3 # choose
+    t_1 = (T - t_3 - 2*t_2)/4
+    v = 2/(T + t_3)
+    a = v/(t_1+t_2)
+    J = a/t_1
+    if 0 <= t <= t_1:
+        s = (J*t**3)/6
+    elif t_1 < t <= (t_2 + t_1):
+        t_d = t - t_1
+        s = (a*t_1**2)/6 + a*t_1*t_d/2 + (a*t_d**2)/2
+    elif (t_2 + t_1) < t <= (t_2 + 2*t_1):
+        t_d = t - (t_2 + t_1)
+        s = (a*t_1**2)/6 + a*t_1*t_2/2 + (a*t_2**2)/2 + a*t_1*t_d/2 + a*t_2*t_d + (a*t_d**2)/2 - (J*t_d**3)/6
+    elif (t_2 + 2*t_1) < t <= (t_3 + t_2 + 2*t_1):
+        t_d = t - (t_2 + 2*t_1)
+        s = a*t_1*t_2/2 + v*(t_2+t_1)/2 + (a*t_1**2)/2 + v*t_d
+    elif (t_3 + t_2 + 2*t_1) < t <= (t_3 + t_2 + 3*t_1):
+        t_d = t - (t_3 + t_2 + 2*t_1)
+        s = a*t_1*t_2/2 + v*(t_2+t_1)/2 + (a*t_1**2)/2 + v*t_3 + v*t_d - (J*t_d**3)/6
+    elif (t_3 + t_2 + 3*t_1) < t <= (t_3 + 2*t_2 + 3*t_1):
+        t_d = t - (t_3 + t_2 + 3*t_1)
+        s = a*t_1*t_2/2 + v*(t_2+t_1)/2 + (a*t_1**2)/2 + v*t_3 + v*t_1 - (a*t_1**2)/6 + v*t_d - a*t_1*t_d/2 - (a*t_d**2)/2
+    else:
+        t_d = t - (t_3 + 2*t_2 + 3*t_1)
+        s = v*t_3 + v*t_2 + 2*v*t_1 - (a*t_1**2)/6 + a*t_1*t_d/2 - (a*t_d**2)/2 + (J*t_d**3)/6
+    return q0 + s*(qd-q0)
+
+
 def rot2eul(R):
     beta = -np.arcsin(R[2,0])
     alpha = np.arctan2(R[2,1]/np.cos(beta),R[2,2]/np.cos(beta))
